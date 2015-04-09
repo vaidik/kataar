@@ -13,6 +13,8 @@ object Kataar {
     }
 }
 
+case class EmptyQueueException extends Exception
+
 class KataarQueue (name: String) {
   // The actual queue
   private var q: List[String] = List()
@@ -27,9 +29,15 @@ class KataarQueue (name: String) {
 
   def pop(): String = {
     this.synchronized {
-      val item = q.head
-      q = q.drop(1)
-      item
+      try {
+        val item = q.head
+        q = q.drop(1)
+        item
+      } catch {
+        case e: java.util.NoSuchElementException  => {
+          throw new EmptyQueueException
+        }
+      }
     }
   }
 }
