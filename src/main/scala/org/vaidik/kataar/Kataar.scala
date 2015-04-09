@@ -13,7 +13,8 @@ object Kataar {
     }
 }
 
-case class EmptyQueueException extends Exception
+// Exception to be thrown whenever queue is empty
+case class EmptyQueueException(message: String = null) extends Exception(message)
 
 class KataarQueue (name: String) {
   // The actual queue
@@ -22,20 +23,20 @@ class KataarQueue (name: String) {
   def push(item: Any) {
     // TODO: this is probably error prone. Check better ways of fixing this.
     this.synchronized {
-      val newQ = List(q, List(item.toString)).flatten
-      q = newQ
+      val newQ = List(this.q, List(item.toString)).flatten
+      this.q = newQ
     }
   }
 
   def pop(): String = {
     this.synchronized {
       try {
-        val item = q.head
-        q = q.drop(1)
+        val item = this.q.head
+        this.q = this.q.drop(1)
         item
       } catch {
         case e: java.util.NoSuchElementException  => {
-          throw new EmptyQueueException
+          throw new EmptyQueueException(this.name + " queue is empty.")
         }
       }
     }
