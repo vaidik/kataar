@@ -1,6 +1,8 @@
 *.class
 *.log
 
+application.conf
+
 # sbt specific
 .cache
 .history
