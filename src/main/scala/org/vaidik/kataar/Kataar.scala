@@ -24,15 +24,22 @@ class KataarQueue (name: String) {
   private var popQ: List[String] = List()
   private var size: Int = 0
 
+  private val datadirFile = new File(Kataar.config.getString("kataar.datadir"))
+  private var dataFiles: List[String] = datadirFile.list.toList.filter((fileName: String) => {
+    fileName.startsWith(this.name + "-")
+  })
+
   private def backup(q: List[String]) {
-    var ts: Long = System.currentTimeMillis / 1000
-    var fileName = this.name
+    var fileName = this.name + "-" + System.currentTimeMillis + ".dump"
 
     new Thread(new Runnable {
       def run() {
-        var pw = new java.io.PrintWriter(new File(Kataar.config.getString("kataar.datadir") + "/" + fileName + ".dump"))
+        var filePath = Kataar.config.getString("kataar.datadir") + "/" + fileName
+        var pw = new java.io.PrintWriter(new File(filePath))
         pw.write(q.pickle.toString)
         pw.close()
+
+        dataFiles = List(dataFiles, List(fileName)).flatten
       }
     }).start
   }
