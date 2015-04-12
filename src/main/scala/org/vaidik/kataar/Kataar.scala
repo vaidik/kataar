@@ -22,21 +22,23 @@ class KataarQueue (name: String) {
   // The actual queue
   private var pushQ: List[String] = List()
   private var popQ: List[String] = List()
-  private var size: Int = 0
 
   private val datadirFile = new File(Kataar.config.getString("kataar.datadir"))
   private var dataFiles: List[String] = datadirFile.list.toList.filter((fileName: String) => {
     fileName.startsWith(this.name + "-")
   })
 
-  private def backup(q: List[String]) {
+  this.loadBackup()
+
+  private def backup() {
     var fileName = this.name + "-" + System.currentTimeMillis + ".dump"
+    var q = this.pushQ
 
     new Thread(new Runnable {
       def run() {
         var filePath = Kataar.config.getString("kataar.datadir") + "/" + fileName
         var pw = new java.io.PrintWriter(new File(filePath))
-        pw.write(q.pickle.toString)
+        pw.write(q.pickle.value)
         pw.close()
 
         dataFiles = List(dataFiles, List(fileName)).flatten
@@ -46,26 +48,45 @@ class KataarQueue (name: String) {
 
   def push(item: Any) {
     this.synchronized {
-      if (this.size + 1 > Kataar.config.getInt("kataar.buffer")) {
-        this.backup(this.pushQ)
+      if (this.pushQ.length + 1 > Kataar.config.getInt("kataar.buffer")) {
+        this.backup
         this.pushQ = List()
-        this.size = 0
-        // throw new QueueBufferOverflowException("Buffer overflow for queue " + this.name + ".")
       }
 
       // TODO: this is probably error prone. Check better ways of fixing this.
       val newQ = List(this.pushQ, List(item.toString)).flatten
       this.pushQ = newQ
-      size = size + 1
+    }
+  }
+
+  private def loadBackup() {
+    try {
+      val backupFile = this.dataFiles.head
+      this.popQ =
+        scala.io.Source.fromFile(Kataar.config.getString("kataar.datadir") +
+        "/" + backupFile).mkString.unpickle[List[String]]
+      dataFiles = dataFiles.drop(1)
+    } catch {
+      case e: java.util.NoSuchElementException => this.popQ = this.pushQ
     }
   }
 
   def pop(): String = {
     this.synchronized {
+      if (this.popQ.length == 0) {
+          this.loadBackup()
+      }
+
       try {
         val item = this.popQ.head
-        this.popQ = this.popQ.drop(1)
-        size = size - 1
+        val newQ = this.popQ.drop(1)
+
+        // When pushQ and popQ are the same
+        if (this.popQ == this.pushQ) {
+          this.pushQ = newQ
+        }
+        this.popQ = newQ
+
         item
       } catch {
         case e: java.util.NoSuchElementException => {
